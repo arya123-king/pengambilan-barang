@@ -1,1 +1,337 @@
-# pengambilan-barang
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencatatan Utang</title>
+    <style>
+        * {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        input[type="date"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .btn-delete {
+            background-color: #f44336;
+        }
+        
+        .btn-delete:hover {
+            background-color: #d32f2f;
+        }
+        
+        .btn-reset {
+            background-color: #ff9800;
+        }
+        
+        .btn-reset:hover {
+            background-color: #e68900;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .total-section {
+            margin-top: 20px;
+            text-align: right;
+            font-size: 18px;
+            font-weight: bold;
+        }
+        
+        .notification {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: none;
+        }
+        
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Pencatatan Utang</h1>
+        
+        <div id="notification" class="notification"></div>
+        
+        <form id="utangForm">
+            <div class="form-group">
+                <label for="tanggal">Tanggal</label>
+                <input type="date" id="tanggal" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="namaBarang">Nama Barang</label>
+                <input type="text" id="namaBarang" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="jumlahBarang">Jumlah Barang</label>
+                <input type="number" id="jumlahBarang" min="1" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="hargaBarang">Harga per Barang (Rp)</label>
+                <input type="number" id="hargaBarang" min="0" required>
+            </div>
+            
+            <button type="submit">Tambah Barang</button>
+            <button type="button" class="btn-reset" id="resetBtn">Reset Semua</button>
+        </form>
+        
+        <table id="tabelUtang">
+            <thead>
+                <tr>
+                    <th>No</th>
+                    <th>Tanggal</th>
+                    <th>Nama Barang</th>
+                    <th>Jumlah</th>
+                    <th>Harga per Barang (Rp)</th>
+                    <th>Total Harga (Rp)</th>
+                    <th>Aksi</th>
+                </tr>
+            </thead>
+            <tbody id="daftarUtang">
+                <!-- Data akan ditampilkan di sini -->
+            </tbody>
+        </table>
+        
+        <div class="total-section">
+            Total Keseluruhan: Rp <span id="totalKeseluruhan">0</span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('utangForm');
+            const tanggalInput = document.getElementById('tanggal');
+            const namaBarangInput = document.getElementById('namaBarang');
+            const jumlahBarangInput = document.getElementById('jumlahBarang');
+            const hargaBarangInput = document.getElementById('hargaBarang');
+            const daftarUtang = document.getElementById('daftarUtang');
+            const totalKeseluruhanElement = document.getElementById('totalKeseluruhan');
+            const resetBtn = document.getElementById('resetBtn');
+            const notification = document.getElementById('notification');
+            
+            // Set tanggal hari ini sebagai default
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0];
+            tanggalInput.value = formattedDate;
+            
+            // Load data dari localStorage
+            let dataUtang = JSON.parse(localStorage.getItem('dataUtang')) || [];
+            
+            // Tampilkan data yang sudah ada
+            tampilkanData();
+            
+            // Event listener untuk form submit
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const tanggal = tanggalInput.value;
+                const namaBarang = namaBarangInput.value.trim();
+                const jumlahBarang = parseInt(jumlahBarangInput.value);
+                const hargaBarang = parseInt(hargaBarangInput.value);
+                
+                if (tanggal && namaBarang && jumlahBarang > 0 && hargaBarang >= 0) {
+                    // Tambah data baru
+                    const totalHarga = jumlahBarang * hargaBarang;
+                    const newItem = {
+                        id: Date.now(),
+                        tanggal: tanggal,
+                        nama: namaBarang,
+                        jumlah: jumlahBarang,
+                        harga: hargaBarang,
+                        total: totalHarga
+                    };
+                    
+                    dataUtang.push(newItem);
+                    simpanData();
+                    tampilkanData();
+                    
+                    // Reset form kecuali tanggal
+                    form.reset();
+                    tanggalInput.value = formattedDate;
+                    
+                    // Tampilkan notifikasi
+                    tampilkanNotifikasi('Barang berhasil ditambahkan!', 'success');
+                } else {
+                    tampilkanNotifikasi('Mohon isi semua field dengan benar!', 'error');
+                }
+            });
+            
+            // Event listener untuk reset button
+            resetBtn.addEventListener('click', function() {
+                if (confirm('Apakah Anda yakin ingin menghapus semua data?')) {
+                    dataUtang = [];
+                    simpanData();
+                    tampilkanData();
+                    tampilkanNotifikasi('Semua data telah direset!', 'success');
+                }
+            });
+            
+            // Fungsi untuk menampilkan data
+            function tampilkanData() {
+                daftarUtang.innerHTML = '';
+                let totalKeseluruhan = 0;
+                
+                if (dataUtang.length === 0) {
+                    const row = document.createElement('tr');
+                    row.innerHTML = '<td colspan="7" style="text-align: center;">Tidak ada data utang</td>';
+                    daftarUtang.appendChild(row);
+                } else {
+                    // Urutkan data berdasarkan tanggal (terbaru di atas)
+                    const dataTerurut = [...dataUtang].sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+                    
+                    dataTerurut.forEach((item, index) => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${index + 1}</td>
+                            <td>${formatTanggal(item.tanggal)}</td>
+                            <td>${item.nama}</td>
+                            <td>${item.jumlah}</td>
+                            <td>${formatRupiah(item.harga)}</td>
+                            <td>${formatRupiah(item.total)}</td>
+                            <td><button class="btn-delete" data-id="${item.id}">Hapus</button></td>
+                        `;
+                        daftarUtang.appendChild(row);
+                        
+                        totalKeseluruhan += item.total;
+                    });
+                    
+                    // Tambahkan event listener untuk tombol hapus
+                    document.querySelectorAll('.btn-delete').forEach(button => {
+                        button.addEventListener('click', function() {
+                            const id = parseInt(this.getAttribute('data-id'));
+                            hapusItem(id);
+                        });
+                    });
+                }
+                
+                totalKeseluruhanElement.textContent = formatRupiah(totalKeseluruhan);
+            }
+            
+            // Fungsi untuk menghapus item
+            function hapusItem(id) {
+                dataUtang = dataUtang.filter(item => item.id !== id);
+                simpanData();
+                tampilkanData();
+                tampilkanNotifikasi('Barang berhasil dihapus!', 'success');
+            }
+            
+            // Fungsi untuk menyimpan data ke localStorage
+            function simpanData() {
+                localStorage.setItem('dataUtang', JSON.stringify(dataUtang));
+            }
+            
+            // Fungsi untuk menampilkan notifikasi
+            function tampilkanNotifikasi(pesan, tipe) {
+                notification.textContent = pesan;
+                notification.className = `notification ${tipe}`;
+                notification.style.display = 'block';
+                
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 3000);
+            }
+            
+            // Fungsi untuk format rupiah
+            function formatRupiah(angka) {
+                return angka.toLocaleString('id-ID');
+            }
+            
+            // Fungsi untuk format tanggal (DD/MM/YYYY)
+            function formatTanggal(tanggalString) {
+                const tanggal = new Date(tanggalString);
+                const hari = tanggal.getDate().toString().padStart(2, '0');
+                const bulan = (tanggal.getMonth() + 1).toString().padStart(2, '0');
+                const tahun = tanggal.getFullYear();
+                return `${hari}/${bulan}/${tahun}`;
+            }
+        });
+    </script>
+</body>
+</html>
